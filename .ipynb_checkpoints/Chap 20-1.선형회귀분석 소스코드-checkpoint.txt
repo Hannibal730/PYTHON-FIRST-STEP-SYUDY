@@ -1,0 +1,72 @@
+#Step 1. 구글 코랩에 한글 폰트 설정하기
+
+!sudo apt-get install -y fonts-nanum
+!sudo fc-cache -fv
+!rm ~/.cache/matplotlib -rf
+
+#Step 1.분석할 데이터가 저장된 파일을 불러와서 변수에 할당합니다.
+from google.colab import files
+myfile = files.upload()
+import io
+import pandas as pd
+#pd.read_csv로 csv파일 불러오기
+study = pd.read_csv(io.BytesIO(myfile['공부시간과시험점수.csv']),
+                       encoding='cp949')
+study
+
+data =study['공부시간']
+target = study['시험점수']
+
+import matplotlib.pyplot as plt
+plt.plot(data,target,'o')
+plt.show()
+
+# case-1.훈련데이터와 테스트데이터로 나누지 않고 전체를 분석한다
+from sklearn.linear_model import LinearRegression
+lf = LinearRegression()
+lf.fit(data.values.reshape(-1,1),target)
+
+lf.predict([[16]])
+
+#기울기
+lf.coef_
+
+#y절편
+lf.intercept_
+
+plt.plot(data,target,'o')
+plt.plot(data , lf.predict(data.values.reshape(-1,1)))
+plt.scatter(16 , 90 ,marker="^",color='red')
+plt.show()
+
+# case-2.훈련 세트와 테스트 세트로 나눕니다.
+import numpy as np
+
+data =study['공부시간'].to_numpy()
+target = study['시험점수'].to_numpy()
+
+from sklearn.model_selection import train_test_split
+훈련용_data , 테스트용_data , 훈련용_target , 테스트용_target = train_test_split(
+    data , target , test_size=0.2 , random_state=40)
+
+훈련용_data = 훈련용_data.reshape(-1,1)
+테스트용_data = 테스트용_data.reshape(-1,1)
+
+훈련용_data
+
+from sklearn.linear_model import LinearRegression
+lr = LinearRegression()
+lr.fit(훈련용_data , 훈련용_target)
+lr.predict([[16]])
+
+print(lr.coef_ , lr.intercept_)
+
+print(lr.score(훈련용_data , 훈련용_target))
+print(lr.score(테스트용_data , 테스트용_target))
+
+import matplotlib.pyplot as plt
+plt.scatter(훈련용_data , 훈련용_target)
+plt.plot( [5,18], [5*lr.coef_ +lr.intercept_ ,
+                    18*lr.coef_ + lr.intercept_])
+plt.scatter(16 , 90 ,marker="^")
+plt.show()

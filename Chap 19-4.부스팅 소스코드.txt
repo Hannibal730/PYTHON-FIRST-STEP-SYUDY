@@ -1,0 +1,52 @@
+#Step 1. 구글 코랩에 한글 폰트 설정하기
+
+!sudo apt-get install -y fonts-nanum
+!sudo fc-cache -fv
+!rm ~/.cache/matplotlib -rf
+
+#Step 2.분석할 데이터가 저장된 파일을 불러와서 변수에 할당합니다.
+from google.colab import files
+myfile = files.upload()
+import io
+import pandas as pd
+#pd.read_csv로 csv파일 불러오기
+과일채소목록 = pd.read_csv(io.BytesIO(myfile['과일채소목록.csv']),
+                       encoding='cp949')
+과일채소목록
+
+#Step 3. 훈련용 세트와 테스트용 세트로 나눕니다.
+data = 과일채소목록[ ['무게_g','길이_cm','색상','당도']] 
+target = 과일채소목록['종류']
+
+from sklearn.model_selection import train_test_split
+훈련용_data , 테스트용_data , 훈련용_target , 테스트용_target = train_test_split(
+    data , target , test_size=0.3 , random_state=40)
+
+#Step 4. 그레이디언트 부스팅 알고리즘으로 분석하기
+from sklearn.ensemble import GradientBoostingClassifier
+gb = GradientBoostingClassifier(n_estimators=300 , random_state=40)
+gb.fit(훈련용_data , 훈련용_target)
+gb.score(테스트용_data , 테스트용_target)
+
+#Step 5. 과대적합 여부 살펴보기
+import numpy as np
+from sklearn.model_selection import cross_validate
+score = cross_validate(gb , 훈련용_data , 훈련용_target ,
+                        return_train_score=True , n_jobs=-1)
+print( '훈련데이터점수:',np.mean(score['train_score']) , \
+      '/ 검증데이터점수:', np.mean(score['test_score']))
+
+# 히스토그램 기반 그레이디언트 부스팅
+from sklearn.experimental import enable_hist_gradient_boosting
+from sklearn.ensemble import HistGradientBoostingClassifier
+hgb = HistGradientBoostingClassifier(random_state=40)
+hgb.fit(훈련용_data , 훈련용_target)
+hgb.score(테스트용_data , 테스트용_target)
+
+#XGBoost 기법
+from xgboost import XGBClassifier
+xgb = XGBClassifier(tree_method='hist' , random_state=40)
+score = cross_validate(xgb , 훈련용_data , 훈련용_target ,
+                        return_train_score=True , n_jobs=-1)
+print( '훈련데이터점수:',np.mean(score['train_score']) ,\
+      '/ 검증데이터점수:', np.mean(score['test_score']))

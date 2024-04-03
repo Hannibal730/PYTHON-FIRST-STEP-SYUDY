@@ -1,0 +1,97 @@
+#Step 1.분석할 데이터가 저장된 파일을 불러와서 변수에 할당합니다.
+from google.colab import files
+myfile = files.upload()
+import io
+import pandas as pd
+#pd.read_csv로 csv파일 불러오기
+study = pd.read_csv(io.BytesIO(myfile['공부시간과시험점수3.csv']),
+                       encoding='cp949')
+study
+
+#case 2: 훈련용 데이터셋과 테스트용 데이터셋 나누어서 분석
+data = study[ ['공부시간','학원수'] ]
+target = study['시험점수']
+
+from sklearn.model_selection import train_test_split
+훈련용_data , 테스트용_data , 훈련용_target , 테스트용_target = train_test_split(
+    data , target , test_size=0.2 , random_state=40)
+
+# 새로운 특성을 생성합니다
+from sklearn.preprocessing import PolynomialFeatures
+poly = PolynomialFeatures(include_bias=False)
+poly.fit( 훈련용_data )
+훈련용_data_new = poly.transform(훈련용_data) # 새로운 특성 만들기
+테스트용_data_new = poly.transform(테스트용_data) # 새로운 특성 만들기
+print(훈련용_data_new)  
+print(훈련용_data_new.shape)
+
+#생성된 특성 내역 보기
+# 공부시간 , 학원수 , 공부시간^2 , 공부시간 x 학원수 , 학원수^2
+poly.get_feature_names()
+
+# 모델 평가하기
+from sklearn.linear_model import LinearRegression
+lr = LinearRegression()
+
+lr.fit(훈련용_data_new , 훈련용_target)
+
+print('훈련용 데이터 점수:',lr.score(훈련용_data_new, 훈련용_target))
+print('테스트용 데이터 점수:',lr.score(테스트용_data_new, 테스트용_target))
+
+# 규제 - 릿지와 라쏘 활용
+# 데이터 정규화 하기
+from sklearn.preprocessing import StandardScaler
+ss = StandardScaler()
+ss.fit(훈련용_data_new)
+정규화_훈련용_data = ss.transform(훈련용_data_new)
+정규화_테스트용_data = ss.transform(테스트용_data_new)
+
+# 릿지 회귀 사용하기
+from sklearn.linear_model import Ridge
+ridge = Ridge()
+ridge.fit(정규화_훈련용_data, 훈련용_target)
+print(ridge.score(정규화_훈련용_data, 훈련용_target))
+print(ridge.score(정규화_테스트용_data, 테스트용_target))
+
+# 릿지 규제의 alpha 값 찾기
+import matplotlib.pyplot as plt
+훈련용점수 = []
+테스트용점수=[]
+
+alpha_value = [0.001 , 0.1 , 1 , 10 , 100 ]
+for a in alpha_value :
+  ridge = Ridge(alpha=a)
+  ridge.fit(정규화_훈련용_data , 훈련용_target)
+  훈련용점수.append(ridge.score(정규화_훈련용_data , 훈련용_target))
+  테스트용점수.append(ridge.score(정규화_테스트용_data , 테스트용_target))
+
+#점수값을 로그값으로 변환하여 그래프로 출력
+import numpy as np
+plt.plot(np.log10(alpha_value) , 훈련용점수)
+plt.plot(np.log10(alpha_value) , 테스트용점수)
+plt.show()
+
+# 라쏘 회귀 사용하기
+from sklearn.linear_model import Lasso
+lasso = Lasso(alpha=0.1)
+lasso.fit(정규화_훈련용_data, 훈련용_target)
+print(lasso.score(정규화_훈련용_data, 훈련용_target))
+print(lasso.score(정규화_테스트용_data, 테스트용_target))
+
+# 라쏘 규제의 alpha 값 찾기
+import matplotlib.pyplot as plt
+훈련용점수 = []
+테스트용점수=[]
+
+alpha_value = [0.001 , 0.1 , 1 , 10 , 100 ]
+for a in alpha_value :
+  lasso = Lasso(alpha=a , max_iter=10000)
+  lasso.fit(정규화_훈련용_data , 훈련용_target)
+  훈련용점수.append(lasso.score(정규화_훈련용_data , 훈련용_target))
+  테스트용점수.append(lasso.score(정규화_테스트용_data , 테스트용_target))
+
+#점수값을 로그값으로 변환하여 그래프로 출력
+import numpy as np
+plt.plot(np.log10(alpha_value) , 훈련용점수)
+plt.plot(np.log10(alpha_value) , 테스트용점수)
+plt.show()
